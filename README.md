@@ -84,7 +84,4 @@ Contributions to improve the AI cost tracking system are welcome! Please follow 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-Feel free to customize this README to better fit your specific project needs and add any additional sections you think would be helpful for users and contributors.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
