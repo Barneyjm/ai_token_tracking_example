@@ -50,6 +50,8 @@ def main():
         output_token_count INTEGER NOT NULL,
         cached_input_token_count INTEGER NOT NULL DEFAULT 0,
         thinking_token_count INTEGER NOT NULL DEFAULT 0,
+        tool_definition_count INTEGER NOT NULL DEFAULT 0,
+        tool_call_count INTEGER NOT NULL DEFAULT 0,
         model_id INTEGER,
         api_version_id INTEGER,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -129,16 +131,26 @@ def main():
             if model_id in thinking_models and random.random() < 0.4:
                 thinking_token_count = random.randint(200, 2000)
 
+            # ~60% of requests use tool use (tool defs inflate input tokens,
+            # tool results come back as input tokens on subsequent turns)
+            tool_definition_count = 0
+            tool_call_count = 0
+            if random.random() < 0.6:
+                tool_definition_count = random.randint(1, 15)
+                tool_call_count = random.randint(1, min(tool_definition_count, 5))
+
             timestamp = current_date + timedelta(seconds=random.randint(0, 86399))
 
             cursor.execute('''
             INSERT INTO token_tracking
             (request_id, request_key_id, input_token_count, output_token_count,
              cached_input_token_count, thinking_token_count,
+             tool_definition_count, tool_call_count,
              model_id, api_version_id, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (request_id, request_key_id, input_token_count, output_token_count,
                   cached_input_token_count, thinking_token_count,
+                  tool_definition_count, tool_call_count,
                   model_id, api_version_id, timestamp))
 
         current_date += timedelta(days=1)
@@ -252,6 +264,31 @@ def main():
     ORDER BY thinking_cost DESC
     '''
 
+    tool_use_analysis = '''
+    SELECT mi.provider, mi.model_name,
+           COUNT(*) as total_requests,
+           SUM(CASE WHEN tt.tool_call_count > 0 THEN 1 ELSE 0 END) as tool_use_requests,
+           ROUND(100.0 * SUM(CASE WHEN tt.tool_call_count > 0 THEN 1 ELSE 0 END) / COUNT(*), 1) as tool_use_pct,
+           ROUND(AVG(CASE WHEN tt.tool_call_count > 0 THEN tt.tool_definition_count END), 1) as avg_tools_defined,
+           ROUND(AVG(CASE WHEN tt.tool_call_count > 0 THEN tt.tool_call_count END), 1) as avg_tool_calls,
+           ROUND(AVG(CASE WHEN tt.tool_call_count > 0
+                      THEN tt.input_token_count * mi.input_price_per_mtok / 1e6
+                           + tt.output_token_count * mi.output_price_per_mtok / 1e6
+                           + tt.cached_input_token_count * mi.cache_read_price_per_mtok / 1e6
+                           + tt.thinking_token_count * mi.output_price_per_mtok / 1e6
+                      END), 6) as avg_cost_with_tools,
+           ROUND(AVG(CASE WHEN tt.tool_call_count = 0
+                      THEN tt.input_token_count * mi.input_price_per_mtok / 1e6
+                           + tt.output_token_count * mi.output_price_per_mtok / 1e6
+                           + tt.cached_input_token_count * mi.cache_read_price_per_mtok / 1e6
+                           + tt.thinking_token_count * mi.output_price_per_mtok / 1e6
+                      END), 6) as avg_cost_without_tools
+    FROM token_tracking tt
+    JOIN model_information mi ON tt.model_id = mi.model_id
+    GROUP BY mi.provider, mi.model_name
+    ORDER BY mi.provider, mi.model_name
+    '''
+
     queries = [
         ("Top 5 Most Expensive Invocations", top_5_requests),
         ("Total Cost Per Model", total_cost_per_model),
@@ -261,6 +298,7 @@ def main():
         ("Monthly Cost Breakdown by Model for Each API Key", monthly_usage_per_model_per_key),
         ("Cache Savings by Model", cache_savings),
         ("Thinking Token Costs by Model", thinking_costs),
+        ("Tool Use Analysis by Model", tool_use_analysis),
     ]
 
     for title, query in queries:

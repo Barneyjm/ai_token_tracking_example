@@ -5,10 +5,11 @@ A Python-based AI cost tracking system for monitoring and analyzing token usage 
 ## Features
 
 - **Multi-provider support** — track costs across Anthropic (Claude) and OpenAI (GPT, o-series) models
-- **Modern token tracking** — input, output, cached input, and thinking/reasoning tokens
+- **Modern token tracking** — input, output, cached input, thinking/reasoning, and tool use metadata
 - **Prompt caching analysis** — measure savings from cached input tokens
 - **Thinking token costs** — track extended thinking / reasoning token spend separately
 - **Per-million-token pricing** — aligned with current industry-standard pricing units
+- **Tool use analysis** — track tool definitions and calls per request, compare costs with/without tools
 - **Cost analysis queries** — pre-built SQL for slicing costs by key, model, month, and more
 
 ## Getting Started
@@ -35,7 +36,7 @@ The system uses a SQLite database with the following tables:
 - **`request_keys`** — API keys (one per provider in the sample data)
 - **`model_information`** — Models, their provider, and per-million-token pricing (input, output, cache read)
 - **`api_versions`** — API versions by provider
-- **`token_tracking`** — Per-request token usage: input, output, cached input, and thinking tokens
+- **`token_tracking`** — Per-request token usage: input, output, cached input, thinking tokens, plus tool use metadata (definitions count, call count)
 
 ## Models Included
 
@@ -58,7 +59,7 @@ python example.py
 
 ## Cost Analysis Queries
 
-The repository includes 8 pre-built queries:
+The repository includes 9 pre-built queries:
 
 1. **Top 5 most expensive invocations** — highest-cost individual requests
 2. **Total cost per model** — aggregate cost breakdown by provider and model
@@ -68,6 +69,7 @@ The repository includes 8 pre-built queries:
 6. **Monthly cost breakdown by model for each API key** — detailed 3-way breakdown
 7. **Cache savings by model** — how much prompt caching saved vs. full-price input
 8. **Thinking token costs by model** — extended thinking / reasoning token spend
+9. **Tool use analysis by model** — % of requests using tools, avg tools defined/called, cost comparison with vs. without tools
 
 ## Contributing
 
