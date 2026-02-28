@@ -24,6 +24,7 @@ def main():
     CREATE TABLE IF NOT EXISTS model_information (
         model_id INTEGER PRIMARY KEY AUTOINCREMENT,
         provider TEXT NOT NULL,
+        model_id_str TEXT NOT NULL UNIQUE,
         model_name TEXT NOT NULL,
         input_price_per_mtok REAL NOT NULL,
         output_price_per_mtok REAL NOT NULL,
@@ -74,15 +75,15 @@ def main():
     #   OpenAI:    0.5x base input price
     cursor.executemany(
         """INSERT INTO model_information
-        (provider, model_name, input_price_per_mtok, output_price_per_mtok,
+        (provider, model_id_str, model_name, input_price_per_mtok, output_price_per_mtok,
          cache_read_price_per_mtok, supports_thinking, price_effective_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        [("Anthropic", "Claude Opus 4.6",   5.00, 25.00, 0.50,  1, "2025-01-01"),
-         ("Anthropic", "Claude Sonnet 4.6", 3.00, 15.00, 0.30,  1, "2025-01-01"),
-         ("Anthropic", "Claude Haiku 4.5",  1.00,  5.00, 0.10,  1, "2025-01-01"),
-         ("OpenAI",    "GPT-4o",            2.50, 10.00, 1.25,  0, "2025-01-01"),
-         ("OpenAI",    "GPT-4o-mini",       0.15,  0.60, 0.075, 0, "2025-01-01"),
-         ("OpenAI",    "o3",                2.00,  8.00, 1.00,  1, "2025-01-01")])
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        [("Anthropic", "anthropic/claude-opus-4-6",   "Claude Opus 4.6",   5.00, 25.00, 0.50,  1, "2025-01-01"),
+         ("Anthropic", "anthropic/claude-sonnet-4-6", "Claude Sonnet 4.6", 3.00, 15.00, 0.30,  1, "2025-01-01"),
+         ("Anthropic", "anthropic/claude-haiku-4-5",  "Claude Haiku 4.5",  1.00,  5.00, 0.10,  1, "2025-01-01"),
+         ("OpenAI",    "openai/gpt-4o",               "GPT-4o",            2.50, 10.00, 1.25,  0, "2025-01-01"),
+         ("OpenAI",    "openai/gpt-4o-mini",           "GPT-4o-mini",       0.15,  0.60, 0.075, 0, "2025-01-01"),
+         ("OpenAI",    "openai/o3",                    "o3",                2.00,  8.00, 1.00,  1, "2025-01-01")])
 
     # Insert API versions
     cursor.executemany(
@@ -160,7 +161,7 @@ def main():
     # --- Queries (all costs computed from per-million-token prices) ---
 
     top_5_requests = '''
-    SELECT tt.request_id, mi.provider, mi.model_name,
+    SELECT tt.request_id, mi.model_id_str,
            tt.input_token_count, tt.output_token_count,
            tt.cached_input_token_count, tt.thinking_token_count,
            tt.timestamp,
@@ -175,14 +176,14 @@ def main():
     '''
 
     total_cost_per_model = '''
-    SELECT mi.provider, mi.model_name,
+    SELECT mi.model_id_str,
            SUM(tt.input_token_count * mi.input_price_per_mtok / 1e6
                + tt.output_token_count * mi.output_price_per_mtok / 1e6
                + tt.cached_input_token_count * mi.cache_read_price_per_mtok / 1e6
                + tt.thinking_token_count * mi.output_price_per_mtok / 1e6) as total_cost
     FROM token_tracking tt
     JOIN model_information mi ON tt.model_id = mi.model_id
-    GROUP BY mi.provider, mi.model_name
+    GROUP BY mi.model_id_str
     ORDER BY total_cost DESC
     '''
 
@@ -226,7 +227,7 @@ def main():
     '''
 
     monthly_usage_per_model_per_key = '''
-    SELECT rk.key_name, mi.provider, mi.model_name,
+    SELECT rk.key_name, mi.model_id_str,
            strftime('%Y-%m', tt.timestamp) as month,
            SUM(tt.input_token_count * mi.input_price_per_mtok / 1e6
                + tt.output_token_count * mi.output_price_per_mtok / 1e6
@@ -235,12 +236,12 @@ def main():
     FROM token_tracking tt
     JOIN request_keys rk ON tt.request_key_id = rk.request_key_id
     JOIN model_information mi ON tt.model_id = mi.model_id
-    GROUP BY rk.key_name, mi.provider, mi.model_name, month
-    ORDER BY rk.key_name, mi.provider, mi.model_name, month
+    GROUP BY rk.key_name, mi.model_id_str, month
+    ORDER BY rk.key_name, mi.model_id_str, month
     '''
 
     cache_savings = '''
-    SELECT mi.provider, mi.model_name,
+    SELECT mi.model_id_str,
            SUM(tt.cached_input_token_count) as total_cached_tokens,
            SUM(tt.cached_input_token_count * mi.cache_read_price_per_mtok / 1e6) as cache_cost,
            SUM(tt.cached_input_token_count * mi.input_price_per_mtok / 1e6) as would_have_cost,
@@ -248,24 +249,24 @@ def main():
     FROM token_tracking tt
     JOIN model_information mi ON tt.model_id = mi.model_id
     WHERE tt.cached_input_token_count > 0
-    GROUP BY mi.provider, mi.model_name
+    GROUP BY mi.model_id_str
     ORDER BY savings DESC
     '''
 
     thinking_costs = '''
-    SELECT mi.provider, mi.model_name,
+    SELECT mi.model_id_str,
            SUM(tt.thinking_token_count) as total_thinking_tokens,
            SUM(tt.thinking_token_count * mi.output_price_per_mtok / 1e6) as thinking_cost,
            SUM(tt.output_token_count * mi.output_price_per_mtok / 1e6) as output_cost
     FROM token_tracking tt
     JOIN model_information mi ON tt.model_id = mi.model_id
     WHERE tt.thinking_token_count > 0
-    GROUP BY mi.provider, mi.model_name
+    GROUP BY mi.model_id_str
     ORDER BY thinking_cost DESC
     '''
 
     tool_use_analysis = '''
-    SELECT mi.provider, mi.model_name,
+    SELECT mi.model_id_str,
            COUNT(*) as total_requests,
            SUM(CASE WHEN tt.tool_call_count > 0 THEN 1 ELSE 0 END) as tool_use_requests,
            ROUND(100.0 * SUM(CASE WHEN tt.tool_call_count > 0 THEN 1 ELSE 0 END) / COUNT(*), 1) as tool_use_pct,
@@ -285,8 +286,8 @@ def main():
                       END), 6) as avg_cost_without_tools
     FROM token_tracking tt
     JOIN model_information mi ON tt.model_id = mi.model_id
-    GROUP BY mi.provider, mi.model_name
-    ORDER BY mi.provider, mi.model_name
+    GROUP BY mi.model_id_str
+    ORDER BY mi.model_id_str
     '''
 
     queries = [

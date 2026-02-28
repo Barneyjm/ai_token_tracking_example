@@ -34,20 +34,20 @@ A Python-based AI cost tracking system for monitoring and analyzing token usage 
 The system uses a SQLite database with the following tables:
 
 - **`request_keys`** — API keys (one per provider in the sample data)
-- **`model_information`** — Models, their provider, and per-million-token pricing (input, output, cache read)
+- **`model_information`** — Models with `provider/model-name` identifiers and per-million-token pricing (input, output, cache read)
 - **`api_versions`** — API versions by provider
 - **`token_tracking`** — Per-request token usage: input, output, cached input, thinking tokens, plus tool use metadata (definitions count, call count)
 
 ## Models Included
 
-| Provider  | Model             | Input (per MTok) | Output (per MTok) | Cache Read (per MTok) |
-|-----------|-------------------|------------------:|-------------------:|----------------------:|
-| Anthropic | Claude Opus 4.6   |            $5.00  |            $25.00  |                $0.50  |
-| Anthropic | Claude Sonnet 4.6 |            $3.00  |            $15.00  |                $0.30  |
-| Anthropic | Claude Haiku 4.5  |            $1.00  |             $5.00  |                $0.10  |
-| OpenAI    | GPT-4o            |            $2.50  |            $10.00  |                $1.25  |
-| OpenAI    | GPT-4o-mini       |            $0.15  |             $0.60  |               $0.075  |
-| OpenAI    | o3                |            $2.00  |             $8.00  |                $1.00  |
+| Model ID                        | Display Name      | Input (per MTok) | Output (per MTok) | Cache Read (per MTok) |
+|---------------------------------|-------------------|------------------:|-------------------:|----------------------:|
+| `anthropic/claude-opus-4-6`     | Claude Opus 4.6   |            $5.00  |            $25.00  |                $0.50  |
+| `anthropic/claude-sonnet-4-6`   | Claude Sonnet 4.6 |            $3.00  |            $15.00  |                $0.30  |
+| `anthropic/claude-haiku-4-5`    | Claude Haiku 4.5  |            $1.00  |             $5.00  |                $0.10  |
+| `openai/gpt-4o`                 | GPT-4o            |            $2.50  |            $10.00  |                $1.25  |
+| `openai/gpt-4o-mini`            | GPT-4o-mini       |            $0.15  |             $0.60  |               $0.075  |
+| `openai/o3`                     | o3                |            $2.00  |             $8.00  |                $1.00  |
 
 ## Simulation Script
 
