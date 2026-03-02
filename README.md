@@ -1,30 +1,18 @@
 # AI Cost Tracking System
 
-This repository contains a simple yet powerful AI cost tracking system designed to help you monitor and analyze the costs associated with using various AI models through API calls. The system includes a database schema, a Python simulation script, and SQL queries for cost analysis.
-
-## Table of Contents
-
-- [AI Cost Tracking System](#ai-cost-tracking-system)
-  - [Table of Contents](#table-of-contents)
-  - [Features](#features)
-  - [Getting Started](#getting-started)
-  - [Database Schema](#database-schema)
-  - [Simulation Script](#simulation-script)
-  - [Cost Analysis Queries](#cost-analysis-queries)
-  - [Contributing](#contributing)
-  - [License](#license)
+A Python-based AI cost tracking system for monitoring and analyzing token usage and costs across multiple providers (Anthropic, OpenAI). Includes a database schema, simulation script, and SQL queries for cost analysis.
 
 ## Features
 
-- Track token usage and costs for multiple AI models
-- Manage multiple API keys
-- Monitor costs across different API versions
-- Generate simulated data for testing and development
-- Analyze costs by API key, model, and time period
+- **Multi-provider support** — track costs across Anthropic (Claude) and OpenAI (GPT, o-series) models
+- **Modern token tracking** — input, output, cached input, thinking/reasoning, and tool use metadata
+- **Prompt caching analysis** — measure savings from cached input tokens
+- **Thinking token costs** — track extended thinking / reasoning token spend separately
+- **Per-million-token pricing** — aligned with current industry-standard pricing units
+- **Tool use analysis** — track tool definitions and calls per request, compare costs with/without tools
+- **Cost analysis queries** — pre-built SQL for slicing costs by key, model, month, and more
 
 ## Getting Started
-
-To get started with this AI cost tracking system:
 
 1. Clone this repository:
    ```
@@ -45,16 +33,25 @@ To get started with this AI cost tracking system:
 
 The system uses a SQLite database with the following tables:
 
-- `request_keys`: Stores information about API keys
-- `model_information`: Contains details about AI models and their pricing
-- `api_versions`: Tracks different API versions
-- `token_tracking`: The main table for recording token usage and costs
+- **`request_keys`** — API keys (one per provider in the sample data)
+- **`model_information`** — Models with `provider/model-name` identifiers and per-million-token pricing (input, output, cache read)
+- **`api_versions`** — API versions by provider
+- **`token_tracking`** — Per-request token usage: input, output, cached input, thinking tokens, plus tool use metadata (definitions count, call count)
+
+## Models Included
+
+| Model ID                        | Display Name      | Input (per MTok) | Output (per MTok) | Cache Read (per MTok) |
+|---------------------------------|-------------------|------------------:|-------------------:|----------------------:|
+| `anthropic/claude-opus-4-6`     | Claude Opus 4.6   |            $5.00  |            $25.00  |                $0.50  |
+| `anthropic/claude-sonnet-4-6`   | Claude Sonnet 4.6 |            $3.00  |            $15.00  |                $0.30  |
+| `anthropic/claude-haiku-4-5`    | Claude Haiku 4.5  |            $1.00  |             $5.00  |                $0.10  |
+| `openai/gpt-4o`                 | GPT-4o            |            $2.50  |            $10.00  |                $1.25  |
+| `openai/gpt-4o-mini`            | GPT-4o-mini       |            $0.15  |             $0.60  |               $0.075  |
+| `openai/o3`                     | o3                |            $2.00  |             $8.00  |                $1.00  |
 
 ## Simulation Script
 
-The `example.py` file generates a year's worth of simulated data. It creates a SQLite database, populates it with sample data, and runs example queries. You can modify this script to generate different patterns of data or adapt it to work with other database systems.
-
-To run the simulation:
+The `example.py` script generates a year of simulated multi-provider data (2025). It creates a SQLite database, populates it with sample models and API keys, and runs example queries. You can modify it to generate different patterns or adapt it for other database systems.
 
 ```
 python example.py
@@ -62,26 +59,22 @@ python example.py
 
 ## Cost Analysis Queries
 
-The repository includes several SQL queries for analyzing costs:
+The repository includes 9 pre-built queries:
 
-1. Total cost by API key
-2. Monthly cost by API key
-3. Total monthly cost across all keys
-4. Monthly cost breakdown by model for each API key
-5. Top 5 requests by cost
-6. Total cost per model
+1. **Top 5 most expensive invocations** — highest-cost individual requests
+2. **Total cost per model** — aggregate cost breakdown by provider and model
+3. **Total cost by API key** — costs grouped by authentication key
+4. **Monthly cost by API key** — time-series cost tracking per key
+5. **Total monthly cost across all keys** — organization-wide monthly spending
+6. **Monthly cost breakdown by model for each API key** — detailed 3-way breakdown
+7. **Cache savings by model** — how much prompt caching saved vs. full-price input
+8. **Thinking token costs by model** — extended thinking / reasoning token spend
+9. **Tool use analysis by model** — % of requests using tools, avg tools defined/called, cost comparison with vs. without tools
 
 ## Contributing
 
-Contributions to improve the AI cost tracking system are welcome! Please follow these steps to contribute:
-
-1. Fork the repository
-2. Create a new branch for your feature or bug fix
-3. Make your changes and commit them with clear, descriptive messages
-4. Push your changes to your fork
-5. Submit a pull request with a clear description of your changes
+Contributions are welcome! Please fork the repository, create a branch, and submit a pull request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
